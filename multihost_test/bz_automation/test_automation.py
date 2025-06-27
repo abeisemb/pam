@@ -180,13 +180,19 @@ class TestPamBz(object):
                                                file_location,
                                                '/tmp/wrong_pass.sh')
         uid = client.run_command("id -u local_anuj").stdout_text.split()[0]
-        client.run_command("cp -vf /etc/security/faillock.conf /etc/security/faillock.conf_anuj")
-        client.run_command("echo 'deny = 1' >> /etc/security/faillock.conf")
+        #client.run_command("cp -vf /etc/security/faillock.conf /etc/security/faillock.conf_anuj")
+        #client.run_command("echo 'deny = 1' >> /etc/security/faillock.conf")
+        client.run_command("cp -vf /etc/pam.d/system-auth /tmp/system-auth")
+        client.run_command("cp -vf /etc/pam.d/password-auth /tmp/password-auth")
+        client.run_command("echo 'auth        [default=die] pam_faillock.so authfail audit deny=3 unlock_time=600' >> /etc/pam.d/system-auth")
+        client.run_command("echo 'auth        [default=die] pam_faillock.so authfail audit deny=3 unlock_time=600' >> /etc/pam.d/password-auth")
         client.run_command("> /var/log/audit/audit.log")
         client.run_command("sh /tmp/wrong_pass.sh", raiseonerr=False)
         time.sleep(3)
         log_str = multihost.client[0].get_file_contents("/var/log/audit/audit.log").decode('utf-8')
-        client.run_command("cp -vf /etc/security/faillock.conf_anuj /etc/security/faillock.conf")
+        #client.run_command("cp -vf /etc/security/faillock.conf_anuj /etc/security/faillock.conf")
+        client.run_command("cp -vf /tmp/system-auth /etc/pam.d/system-auth")
+        client.run_command("cp -vf /tmp/password-auth /etc/pam.d/password-auth")
         assert f'op=pam_faillock suid={uid}' in log_str
 
     @pytest.mark.tier1
