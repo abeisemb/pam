@@ -215,9 +215,9 @@ class TestPamBz(object):
         file_location = "/multihost_test/bz_automation/script/bz824858.sh"
         multihost.client[0].transport.put_file(os.getcwd() + file_location, '/tmp/bz824858.sh')
         #client.run_command("authselect select sssd --force")
-        client.runcommand("authconfig --enablesssd --enablesssdauth --update")
+        client.run_command("authconfig --enablesssd --enablesssdauth --update")
         #client.run_command("authselect enable-feature with-pamaccess")
-        client.runcommand("authconfig --enablepamaccess --update")
+        client.run_command("authconfig --enablepamaccess --update")
 
         #assert "with-pamaccess" in client.run_command("authselect current").stdout_text
         assert "pam_access is enabled" in client.run_command("authconfig --test").stdout_text
@@ -277,6 +277,8 @@ class TestPamBz(object):
             2. Successful login.
         """
         client = multihost.client[0]
+        output_str = client.run_command("cat /etc/pam.d/system-auth").stdout_text
+        print("OUTPUT_STR:", output_str)
         client.run_command("echo 'session    required     pam_tty_audit.so disable=* enable=local_anuj0,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX' >> /etc/pam.d/system-auth")
         client.run_command("su - local_anuj -c exit")
 
@@ -298,9 +300,12 @@ class TestPamBz(object):
         client = multihost.client[0]
         file_location = "/multihost_test/bz_automation/script/authentication.sh"
         multihost.client[0].transport.put_file(os.getcwd() + file_location, '/tmp/authentication.sh')
-        client.run_command("authselect select sssd --force")
-        client.run_command("authselect enable-feature with-pamaccess")
-        assert "with-pamaccess" in client.run_command("authselect current").stdout_text
+        #client.run_command("authselect select sssd --force")
+        client.run_command("authconfig --enablesssd --enablesssdauth --update")
+        #client.run_command("authselect enable-feature with-pamaccess")
+        client.run_command("authconfig --enablepamaccess --update")
+        #assert "with-pamaccess" in client.run_command("authselect current").stdout_text
+        assert "pam_access is enabled" in client.run_command("authconfig --test").stdout_text
         client.run_command(f"echo '+:local_anuj:127.0.0.1' >> /etc/security/access.conf")
         client.run_command("echo '-:ALL:ALL' >> /etc/security/access.conf")
         client.run_command("sh /tmp/authentication.sh")
@@ -324,9 +329,12 @@ class TestPamBz(object):
         client.run_command("> /var/log/secure")
         file_location = "/multihost_test/bz_automation/script/authentication.sh"
         multihost.client[0].transport.put_file(os.getcwd() + file_location, '/tmp/authentication.sh')
-        client.run_command("authselect select sssd --force")
-        client.run_command("authselect enable-feature with-pamaccess")
-        assert "with-pamaccess" in client.run_command("authselect current").stdout_text
+        #client.run_command("authselect select sssd --force")
+        client.run_command("authconfig --enablesssd --enablesssdauth --update")
+        #client.run_command("authselect enable-feature with-pamaccess")
+        client.run_command("authconfig --enablepamaccess --update")
+        #assert "with-pamaccess" in client.run_command("authselect current").stdout_text
+        assert "pam_access is enabled" in client.run_command("authconfig --test").stdout_text
         client.run_command(f"echo '-:local_anuj:LOCAL' >> /etc/security/access.conf")
         client.run_command("echo '+:local_anuj:ALL' >> /etc/security/access.conf")
         client.run_command("sh /tmp/authentication.sh")
