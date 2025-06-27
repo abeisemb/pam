@@ -171,8 +171,10 @@ class TestPamBz(object):
                 op=pam_faillock suid=UID. Where UID is the ID of the user trying to authenticate.
         """
         client = multihost.client[0]
-        execute_cmd(multihost, "authselect select sssd --force")
-        execute_cmd(multihost, "authselect enable-feature with-faillock")
+        #execute_cmd(multihost, "authselect select sssd --force")
+        execute_cmd(multihost, "authconfig --enablesssd --enablesssdauth --update")
+        #execute_cmd(multihost, "authselect enable-feature with-faillock")
+        execute_cmd(multihost, "authconfig --enablefaillock --faillockargs="deny=6 unlock_time=1200" --update")
         file_location = "/multihost_test/bz_automation/script/wrong_pass.sh"
         multihost.client[0].transport.put_file(os.getcwd() +
                                                file_location,
