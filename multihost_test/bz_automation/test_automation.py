@@ -184,8 +184,8 @@ class TestPamBz(object):
         #client.run_command("echo 'deny = 1' >> /etc/security/faillock.conf")
         client.run_command("cp -vf /etc/pam.d/system-auth /tmp/system-auth")
         client.run_command("cp -vf /etc/pam.d/password-auth /tmp/password-auth")
-        client.run_command("echo 'auth        [default=die] pam_faillock.so authfail audit deny=3 unlock_time=600' >> /etc/pam.d/system-auth")
-        client.run_command("echo 'auth        [default=die] pam_faillock.so authfail audit deny=3 unlock_time=600' >> /etc/pam.d/password-auth")
+        client.run_command("echo 'auth        [default=die] pam_faillock.so authfail audit deny=1 unlock_time=600' >> /etc/pam.d/system-auth")
+        client.run_command("echo 'auth        [default=die] pam_faillock.so authfail audit deny=1 unlock_time=600' >> /etc/pam.d/password-auth")
         client.run_command("> /var/log/audit/audit.log")
         client.run_command("sh /tmp/wrong_pass.sh", raiseonerr=False)
         time.sleep(3)
@@ -214,9 +214,14 @@ class TestPamBz(object):
         client = multihost.client[0]
         file_location = "/multihost_test/bz_automation/script/bz824858.sh"
         multihost.client[0].transport.put_file(os.getcwd() + file_location, '/tmp/bz824858.sh')
-        client.run_command("authselect select sssd --force")
-        client.run_command("authselect enable-feature with-pamaccess")
-        assert "with-pamaccess" in client.run_command("authselect current").stdout_text
+        #client.run_command("authselect select sssd --force")
+        client.runcommand("authconfig --enablesssd --enablesssdauth --update")
+        #client.run_command("authselect enable-feature with-pamaccess")
+        client.runcommand("authconfig --enablepamaccess --update")
+
+        #assert "with-pamaccess" in client.run_command("authselect current").stdout_text
+        assert "pam_access is enabled" in client.run_command("authconfig --test").stdout_text
+
         for conf in [
             '+:local_anuj:localhost',
             '+:local_anuj: ::1',
