@@ -26,7 +26,7 @@ class TestPamBz(object):
 
         :id: d3e88514-859a-11ec-bd05-845cf3eff344
         """
-        execute_cmd(multihost, "dnf -y install expect shadow-utils sed grubby")
+        execute_cmd(multihost, "yum -y install expect shadow-utils sed grubby")
         username1 = "testuser1"
         username2 = "testuser2"
         password = "tYnef*9sX"
