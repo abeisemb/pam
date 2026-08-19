@@ -13,8 +13,6 @@ import time
 import paramiko
 import os
 from sssd.testlib.common.utils import SSHClient
-from sssd.testlib.common.expect import pexpect_ssh
-from sssd.testlib.common.ssh2_python import check_login_client
 
 
 def execute_cmd(multihost, command):
@@ -102,8 +100,8 @@ class TestPamBz(object):
         execute_cmd(multihost, '> /tmp/xauthlog')
         execute_cmd(multihost, f"useradd {TUSER}")
         execute_cmd(multihost, "cp -f myxauth /myxauth")
-        execute_cmd(multihost, 'sed -i "s/pam_xauth\.so/pam_xauth\.so '
-                               'debug xauthpath=\/myxauth/g" /etc/pam.d/su')
+        execute_cmd(multihost, 'sed -i "s/pam_xauth\\.so/pam_xauth\\.so '
+                               'debug xauthpath=\\/myxauth/g" /etc/pam.d/su')
         execute_cmd(multihost, 'echo "pam-xauth-tester    hard    nproc   '
                                '0" >> /etc/security/limits.conf')
         execute_cmd(multihost, 'mkdir -p /root/.xauth')
@@ -145,10 +143,9 @@ class TestPamBz(object):
         execute_cmd(multihost, "> /var/log/secure")
         for dirc in ['/run/motd.d', '/etc/motd.d', '/usr/lib/motd.d']:
             execute_cmd(multihost, f"rm -vfr {dirc}")
-        client = pexpect_ssh(multihost.client[0].sys_hostname,
-                             "local_anuj", 'password123', debug=False)
-        client.login(login_timeout=30, sync_multiplier=5, auto_prompt_reset=False)
-        client.logout()
+        ssh = SSHClient(multihost.client[0].ip,
+                        username="local_anuj", password="password123")
+        ssh.close()
         assert "pam_motd: error scanning directory" not in \
                execute_cmd(multihost, "cat /var/log/secure").stdout_text
 
@@ -171,28 +168,20 @@ class TestPamBz(object):
                 op=pam_faillock suid=UID. Where UID is the ID of the user trying to authenticate.
         """
         client = multihost.client[0]
-        #execute_cmd(multihost, "authselect select sssd --force")
-        execute_cmd(multihost, "authconfig --enablesssd --enablesssdauth --update")
-        #execute_cmd(multihost, "authselect enable-feature with-faillock")
-        execute_cmd(multihost, "authconfig --enablefaillock --faillockargs='deny=6 unlock_time=1200' --update")
+        execute_cmd(multihost, "authselect select sssd --force")
+        execute_cmd(multihost, "authselect enable-feature with-faillock")
         file_location = "/multihost_test/bz_automation/script/wrong_pass.sh"
         multihost.client[0].transport.put_file(os.getcwd() +
                                                file_location,
                                                '/tmp/wrong_pass.sh')
         uid = client.run_command("id -u local_anuj").stdout_text.split()[0]
-        #client.run_command("cp -vf /etc/security/faillock.conf /etc/security/faillock.conf_anuj")
-        #client.run_command("echo 'deny = 1' >> /etc/security/faillock.conf")
-        client.run_command("cp -vf /etc/pam.d/system-auth /tmp/system-auth")
-        client.run_command("cp -vf /etc/pam.d/password-auth /tmp/password-auth")
-        client.run_command("echo 'auth        [default=die] pam_faillock.so authfail audit deny=1 unlock_time=600' >> /etc/pam.d/system-auth")
-        client.run_command("echo 'auth        [default=die] pam_faillock.so authfail audit deny=1 unlock_time=600' >> /etc/pam.d/password-auth")
+        client.run_command("cp -vf /etc/security/faillock.conf /etc/security/faillock.conf_anuj")
+        client.run_command("echo 'deny = 1' >> /etc/security/faillock.conf")
         client.run_command("> /var/log/audit/audit.log")
         client.run_command("sh /tmp/wrong_pass.sh", raiseonerr=False)
         time.sleep(3)
         log_str = multihost.client[0].get_file_contents("/var/log/audit/audit.log").decode('utf-8')
-        #client.run_command("cp -vf /etc/security/faillock.conf_anuj /etc/security/faillock.conf")
-        client.run_command("cp -vf /tmp/system-auth /etc/pam.d/system-auth")
-        client.run_command("cp -vf /tmp/password-auth /etc/pam.d/password-auth")
+        client.run_command("cp -vf /etc/security/faillock.conf_anuj /etc/security/faillock.conf")
         assert f'op=pam_faillock suid={uid}' in log_str
 
     @pytest.mark.tier1
@@ -214,14 +203,9 @@ class TestPamBz(object):
         client = multihost.client[0]
         file_location = "/multihost_test/bz_automation/script/bz824858.sh"
         multihost.client[0].transport.put_file(os.getcwd() + file_location, '/tmp/bz824858.sh')
-        #client.run_command("authselect select sssd --force")
-        client.run_command("authconfig --enablesssd --enablesssdauth --update")
-        #client.run_command("authselect enable-feature with-pamaccess")
-        client.run_command("authconfig --enablepamaccess --update")
-
-        #assert "with-pamaccess" in client.run_command("authselect current").stdout_text
-        assert "pam_access is enabled" in client.run_command("authconfig --test").stdout_text
-
+        client.run_command("authselect select sssd --force")
+        client.run_command("authselect enable-feature with-pamaccess")
+        assert "with-pamaccess" in client.run_command("authselect current").stdout_text
         for conf in [
             '+:local_anuj:localhost',
             '+:local_anuj: ::1',
@@ -277,10 +261,6 @@ class TestPamBz(object):
             2. Successful login.
         """
         client = multihost.client[0]
-        output_str1 = client.run_command("grep 'pam_env.so' /etc/pam.d/system-auth").stdout_text
-        print("OUTPUT_STR1:", output_str1)
-        output_str2 = client.run_command("grep 'sam_env.so' /etc/pam.d/system-auth").stdout_text
-        print("OUTPUT_STR2:", output_str2)
         client.run_command("echo 'session    required     pam_tty_audit.so disable=* enable=local_anuj0,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX,local_anujX' >> /etc/pam.d/system-auth")
         client.run_command("su - local_anuj -c exit")
 
@@ -302,12 +282,9 @@ class TestPamBz(object):
         client = multihost.client[0]
         file_location = "/multihost_test/bz_automation/script/authentication.sh"
         multihost.client[0].transport.put_file(os.getcwd() + file_location, '/tmp/authentication.sh')
-        #client.run_command("authselect select sssd --force")
-        client.run_command("authconfig --enablesssd --enablesssdauth --update")
-        #client.run_command("authselect enable-feature with-pamaccess")
-        client.run_command("authconfig --enablepamaccess --update")
-        #assert "with-pamaccess" in client.run_command("authselect current").stdout_text
-        assert "pam_access is enabled" in client.run_command("authconfig --test").stdout_text
+        client.run_command("authselect select sssd --force")
+        client.run_command("authselect enable-feature with-pamaccess")
+        assert "with-pamaccess" in client.run_command("authselect current").stdout_text
         client.run_command(f"echo '+:local_anuj:127.0.0.1' >> /etc/security/access.conf")
         client.run_command("echo '-:ALL:ALL' >> /etc/security/access.conf")
         client.run_command("sh /tmp/authentication.sh")
@@ -331,12 +308,9 @@ class TestPamBz(object):
         client.run_command("> /var/log/secure")
         file_location = "/multihost_test/bz_automation/script/authentication.sh"
         multihost.client[0].transport.put_file(os.getcwd() + file_location, '/tmp/authentication.sh')
-        #client.run_command("authselect select sssd --force")
-        client.run_command("authconfig --enablesssd --enablesssdauth --update")
-        #client.run_command("authselect enable-feature with-pamaccess")
-        client.run_command("authconfig --enablepamaccess --update")
-        #assert "with-pamaccess" in client.run_command("authselect current").stdout_text
-        assert "pam_access is enabled" in client.run_command("authconfig --test").stdout_text
+        client.run_command("authselect select sssd --force")
+        client.run_command("authselect enable-feature with-pamaccess")
+        assert "with-pamaccess" in client.run_command("authselect current").stdout_text
         client.run_command(f"echo '-:local_anuj:LOCAL' >> /etc/security/access.conf")
         client.run_command("echo '+:local_anuj:ALL' >> /etc/security/access.conf")
         client.run_command("sh /tmp/authentication.sh")
@@ -370,3 +344,97 @@ class TestPamBz(object):
         result = multihost.master[0].run_command(f"sh /tmp/authentication_master.sh "
                                                  f"{multihost.client[0].sys_hostname}").stdout_text
         assert "Connection closed by" in result
+
+    @pytest.mark.tier1
+    def test_empty_lastchange_with_expiration(self, multihost, bkp_pam_config, create_localusers):
+        """PAM should allow login when last password change field is empty in /etc/shadow even with expiration configured
+
+        :id: 04812bf2-c38d-11f0-b772-0ec11b8a1c6e
+        :bugzilla: https://issues.redhat.com/browse/RHEL-70476, https://issues.redhat.com/browse/RHEL-70519
+        :setup:
+            1. Use existing local user from fixture
+            2. Configure password expiration fields using chage
+        :steps:
+            1. Attempt to login via SSH with correct credentials
+        :expectedresults:
+            1. Login should succeed as the empty last change field should not trigger expiration enforcement
+        """
+        user = "local_anuj"
+        password = "password123"
+        client = multihost.client[0]
+
+        execute_cmd(multihost, f'chage -d "" -M 360 {user}')
+
+        ssh = SSHClient(client.ip, username=user, password=password)
+        _, _, _ = ssh.execute_cmd("id")
+        ssh.close()
+
+    @pytest.mark.tier1
+    def test_faillock_not_unlocked_by_automated_services(self, multihost, create_localusers, bkp_pam_config):
+        """Faillock locked accounts should not be unlocked by automated services (e.g. crond and systemd-user)
+
+        :id: ade05f56-a818-11ef-b978-52590940e9ab
+        :bugzilla: https://issues.redhat.com/browse/RHEL-130875, https://issues.redhat.com/browse/RHEL-130871
+        :setup:
+            1. Enable faillock feature using authselect
+            2. Configure faillock with a low deny count
+            3. Clear audit log to have clean baseline
+            4. Lock account with failed login attempts
+        :steps:
+            1. Verify faillock count shows account is locked
+            2. Run crond service (simulate cron job execution)
+            3. Verify faillock count still shows account is locked
+            4. Run systemd-user service (simulate user session cleanup)
+            5. Verify faillock count still shows account is locked
+            6. Check audit logs for faillock events
+        :expectedresults:
+            1. Account should be locked by faillock
+            2. crond service should not reset faillock count
+            3. Account should remain locked after crond
+            4. systemd-user service should not reset faillock count
+            5. Account should remain locked after systemd-user
+            6. Audit logs should contain faillock events for the locked account
+        """
+        client = multihost.client[0]
+        username = "local_anuj"
+        audit_log = "/var/log/audit/audit.log"
+
+        execute_cmd(multihost, "authselect select sssd --force")
+        execute_cmd(multihost, "authselect enable-feature with-faillock")
+
+        execute_cmd(multihost, "echo 'deny = 2' >> /etc/security/faillock.conf")
+        execute_cmd(multihost, "echo 'unlock_time = 300' >> /etc/security/faillock.conf")
+        execute_cmd(multihost, f"faillock --user {username} --reset")
+
+        for i in range(2):
+            try:
+                SSHClient(client.ip, username=username, password="wrong_password")
+            except paramiko.ssh_exception.AuthenticationException:
+                pass  # Expected authentication failure
+
+        time.sleep(2)
+        initial_faillock_state = execute_cmd(multihost, f"faillock --user {username}").stdout_text
+        assert 'locked' in initial_faillock_state or 'V' in initial_faillock_state, \
+            f"Account should be locked after failed attempts. Output: {initial_faillock_state}"
+
+        execute_cmd(multihost, f"crontab -u {username} -l 2>/dev/null || true")
+        execute_cmd(multihost, f"su - {username} -c 'echo test > /dev/null'")
+
+        time.sleep(2)
+        after_cron_faillock = execute_cmd(multihost, f"faillock --user {username}").stdout_text
+        assert after_cron_faillock == initial_faillock_state, \
+            f"Faillock state changed after crond. Before: {initial_faillock_state}, After: {after_cron_faillock}"
+
+        execute_cmd(multihost, f"loginctl show-user {username} 2>/dev/null || true")
+        execute_cmd(multihost, f"systemctl --user -M {username}@.machine status 2>/dev/null || true")
+
+        time.sleep(2)
+        after_systemd_faillock = execute_cmd(multihost, f"faillock --user {username}").stdout_text
+        assert after_systemd_faillock == initial_faillock_state, \
+            (f"Faillock state changed after systemd-user operations. Before: "
+             f"{initial_faillock_state}, After: {after_systemd_faillock}")
+
+        audit_content = multihost.client[0].get_file_contents(audit_log).decode('utf-8')
+        faillock_audit_entries = [line for line in audit_content.split('\n') if
+                                  f'op=pam_faillock' in line and username in line]
+        assert len(faillock_audit_entries) > 1, f"No faillock audit entries for {username}"

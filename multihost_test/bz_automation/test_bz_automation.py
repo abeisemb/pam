@@ -40,10 +40,7 @@ class TestPamBz(object):
         client_e = multihost.client[0].ip
         ssh1 = SSHClient(client_e, username=user, password="password123")
         (result1, result2, result3) =  ssh1.execute_cmd("id")
-        full_result_str = ssh1.execute_cmd("id")
         ssh1.close()
-        print("full_result_str:", full_result_str)
-        #print("readlines:", result1.readlines())
         result = result1.readlines()
         for id_id in ['uid=', 'gid=', 'groups=', 'anuj_test']:
             assert id_id in result[0]

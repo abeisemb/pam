@@ -1,0 +1,12 @@
+domains:
+  - name: testrelm.test
+    type: sssd
+    hosts:
+      - name: master
+        role: master
+        ip: 10.0.184.143
+        external_hostname: vm-10-0-184-143.hosted.upshift.rdu2.redhat.com
+      - name: client
+        role: client
+        ip: 10.0.184.143
+        external_hostname: vm-10-0-184-143.hosted.upshift.rdu2.redhat.com
